@@ -36,7 +36,7 @@ namespace Distribute
         [Description("The source directory the files should be distributed from.")]
         [CommandOption("-f|--from")]
         [DefaultValue("The current directory.")]
-        public string From { get; private set;}
+        public string From { get; private set; }
 
         /// <summary>
         /// Gets the source directory the files should be distributed from.

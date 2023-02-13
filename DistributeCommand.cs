@@ -21,7 +21,7 @@ namespace Distribute
         {
             AnsiConsole.Foreground = Color.Green;
 
-            Queue<(string, DateTime)> images = new ();
+            Queue<(string, DateTime)> images = new();
 
             // Indexing images and load metadata
             AnsiConsole.Progress()
@@ -35,12 +35,9 @@ namespace Distribute
                 })
                 .AutoClear(true)
                 .HideCompleted(true)
-                .Start(ctx => images = new (GetImagePaths(options.From, 0, options.Depth, ctx)));
+                .Start(ctx => images = new(GetImagePaths(options.From, 0, options.Depth, ctx)));
 
-            AnsiConsole.Write(new Rule($"Metadata loaded. [yellow]{images.Count}[/] files to distribute!")
-            {
-                Style = Style.Parse("green"),
-            });
+            AnsiConsole.Write(new Rule($"Metadata loaded. [yellow]{images.Count}[/] files to distribute!") { Style = Style.Parse("green"), });
 
             if (images.Count == 0)
             {
@@ -48,44 +45,91 @@ namespace Distribute
                 return 0;
             }
 
+            // Cast (path, date) to (path) queue.
+            var imagePaths = new Queue<string>(
+                images
+                    .Cast<(string, DateTime)>()
+                    .Select(image => image.Item1));
+
             // Start copy images
             var duplicates = CopyImages(images, options.To, options.Structure);
 
-            if (duplicates.Count == 0)
+            if (duplicates.Count > 0)
             {
-                AnsiConsole.MarkupLine("No duplicates. Finished!");
-                return 0;
-            }
-
-            // Ask what should happen with duplicates.
-            AnsiConsole.Write(new Rule($"[green]There are [yellow]{duplicates.Count}[/] duplicate files![/]")
-            {
-                Style = Style.Parse("green"),
-            });
-
-            AnsiConsole.WriteLine();
-
-            var duplicatesOption = AnsiConsole.Prompt(
-                new SelectionPrompt<string>()
-                .Title("[yellow]How would you like to proceed with the duplicate files?[/]")
-                .AddChoices(new[]
+                // Ask what should happen with duplicates.
+                AnsiConsole.Write(new Rule($"[green]There are [yellow]{duplicates.Count}[/] duplicate files![/]")
                 {
+                    Style = Style.Parse("green"),
+                });
+
+                AnsiConsole.WriteLine();
+
+                var duplicatesOption = AnsiConsole.Prompt(
+                    new SelectionPrompt<string>()
+                    .Title("[yellow]How would you like to proceed with the duplicate files?[/]")
+                    .AddChoices(new[]
+                    {
                     "Skip",
                     "Overwrite",
                     "Add \"_copy\" to filename",
-                }));
+                    }));
 
-            switch (duplicatesOption)
-            {
-                case "Skip":
-                    return 0;
-                case "Overwrite":
-                    CopyImages(duplicates, options.To, options.Structure, true);
-                    return 0;
-                default:
-                    CopyImages(duplicates, options.To, options.Structure, false, "_copy");
-                    return 0;
+                switch (duplicatesOption)
+                {
+                    case "Skip":
+                        break;
+                    case "Overwrite":
+                        CopyImages(duplicates, options.To, options.Structure, true);
+                        break;
+                    default:
+                        CopyImages(duplicates, options.To, options.Structure, false, "_copy");
+                        break;
+                }
             }
+
+            // Remove images in source.
+            if (options.Remove)
+            {
+                AnsiConsole.Write(new Rule("[yellow]Removing files in source directory![/]") { Style = Style.Parse("yellow"), });
+                AnsiConsole.Progress()
+                .Columns(new ProgressColumn[]
+                {
+                    new TaskDescriptionColumn(),
+                    new ProgressBarColumn(),
+                    new PercentageColumn(),
+                    new RemainingTimeColumn(),
+                    new ElapsedTimeColumn(),
+                })
+                .Start(ctx =>
+                {
+                    var task = ctx.AddTask("Removing files...", maxValue: imagePaths.Count);
+
+                    do
+                    {
+                        var path = imagePaths.Dequeue();
+
+                        try
+                        {
+                            File.Delete(path);
+                        }
+                        catch (IOException)
+                        {
+                            AnsiConsole.MarkupLine($"[yellow]Image is in use:[/] [gray]{path}[/]");
+                        }
+                        catch (UnauthorizedAccessException)
+                        {
+                            AnsiConsole.MarkupLine($"[yellow]Missing permission to delete image:[/] [gray]{path}[/]");
+                        }
+
+                        task.Increment(1);
+                    }
+                    while (imagePaths.Count > 0);
+                });
+            }
+
+            AnsiConsole.Write(new Rule("[blue]All jobs done successfully![/]") { Style = Style.Parse("blue"), });
+
+            return 0;
         }
 
         private static Queue<(string, DateTime)> CopyImages(Queue<(string, DateTime)> images, string to, string structure, bool overwrite = false, string? filenameAppend = null)
@@ -130,6 +174,10 @@ namespace Distribute
                         {
                             duplicates.Enqueue(image);
                         }
+                        catch (UnauthorizedAccessException)
+                        {
+                            AnsiConsole.MarkupLine($"[yellow]Missing permission copy image:[/] [gray]{image.Item1}[/][white] to [/][grey]{path}[/]");
+                        }
 
                         task.Increment(1);
                     }
@@ -145,23 +193,22 @@ namespace Distribute
 
             var task = ctx.AddTask($"[grey][white]Loading images...         [/] {directory}[/]", maxValue: files.Length + 1);
 
-            List<(string, DateTime)> images = new (files.Length);
+            List<(string, DateTime)> images = new(files.Length);
 
             foreach (string image in files)
             {
-                ExifSubIfdDirectory metadata;
+                ExifSubIfdDirectory? metadata = null;
 
                 try
                 {
                     metadata = ImageMetadataReader
                         .ReadMetadata(image)
                         .OfType<ExifSubIfdDirectory>()
-                        .FirstOrDefault() !;
+                        .FirstOrDefault()!;
                 }
                 catch (ImageProcessingException)
                 {
-                    task.Increment(1);
-                    continue;
+                    AnsiConsole.MarkupLine($"[yellow]Could not process file:[/] [gray]{image}[/]");
                 }
 
                 task.Increment(1);
