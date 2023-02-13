@@ -41,17 +41,16 @@ Because sorting my images by hand into this structure is tedious I build myself 
 ## Usage
 
 ``` txt
-  -f, --from         (Group: Paths) The path to the files that sould be distributed or empty for the current path.
+USAGE:
+    distribute [OPTIONS]
 
-  -t, --to           (Group: Paths) The path where the files should be distributed to or empty for the current path.
-
-  -s, --structure    (Default: yyyy\\MM\\) The folder structure the files should be sorted into.
-
-  -d, --depth        (Default: 5) The search depth.
-
-  -r, --remove       Wether copied images should be deleted in the source.
-
-  --help             Display this help screen.
-
-  --version          Display version information.
+OPTIONS:
+                       DEFAULT
+    -h, --help                                   Prints help information
+    -f, --from         The current directory.    The source directory the files should be distributed from
+    -t, --to           The current directory.    The directory the files should be distributed to
+    -s, --structure    yyyy\\MM\\                The folder structure the files should be sorted into.
+                                                 See https://learn.microsoft.com/en-us/dotnet/standard/base-types/custom-date-and-time-format-strings for more information
+    -d, --depth        5                         The maximum search depth for files in the source directory
+    -r, --remove                                 Whether the distributed and copied files should be deleted in the source directory
 ```
