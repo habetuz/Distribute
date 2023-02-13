@@ -23,9 +23,16 @@ My images
 └ ...
 ```
 
-Because sorting my images by hand into this structure is tedious I build myself this little tool to dot it for me.
+Because sorting my images by hand into this structure is tedious I build myself this little tool to do it for me.
 
 ## Installation
+
+### Scoop
+
+1. Add `HabetuzApps` bucket: <br>`scoop bucket add HabetuzApps https://github.com/habetuz/HabetuzApps`
+2. Install:<br>`scoop install distribute`
+
+### Manual installation
 
 1. Download the zip file of the [latest release](https://github.com/habetuz/Distribute/releases/tag/v1.0.0) and unpack it in your desired location.
 
