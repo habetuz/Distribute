@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using Distribute.FS;
 using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
 using Spectre.Console;
@@ -13,7 +14,10 @@ public class DistributeCommand : Command<Options>
   {
     AnsiConsole.Foreground = Color.Green;
 
-    Queue<(string, DateTime)> images = new();
+    Queue<(string Path, DateTime Date)> images = new();
+
+    FileSystem fsFrom = FileSystemFactory.From(options.From);
+    FileSystem fsTo = FileSystemFactory.From(options.To);
 
     // Indexing images and load metadata
     AnsiConsole
@@ -29,7 +33,7 @@ public class DistributeCommand : Command<Options>
       )
       .AutoClear(true)
       .HideCompleted(true)
-      .Start(ctx => images = new(GetImagePaths(options.From, 0, options.Depth, ctx)));
+      .Start(ctx => images = new(GetMediaPaths(fsFrom, options.From, 0, options.Depth, ctx)));
 
     AnsiConsole.Write(
       new Rule($"Metadata loaded. [yellow]{images.Count}[/] files to distribute!")
@@ -44,13 +48,8 @@ public class DistributeCommand : Command<Options>
       return 0;
     }
 
-    // Cast (path, date) to (path) queue.
-    var imagePaths = new Queue<string>(
-      images.Cast<(string, DateTime)>().Select(image => image.Item1)
-    );
-
     // Start copy images
-    var duplicates = CopyImages(images, options.To, options.Structure);
+    var duplicates = CopyImages(images, fsFrom, fsTo, options.To, options.Structure);
 
     if (duplicates.Count > 0)
     {
@@ -75,10 +74,10 @@ public class DistributeCommand : Command<Options>
         case "Skip":
           break;
         case "Overwrite":
-          CopyImages(duplicates, options.To, options.Structure, true);
+          CopyImages(duplicates, fsFrom, fsTo, options.To, options.Structure, true);
           break;
         default:
-          CopyImages(duplicates, options.To, options.Structure, false, "_copy");
+          CopyImages(duplicates, fsFrom, fsTo, options.To, options.Structure, false, "_copy");
           break;
       }
     }
@@ -102,15 +101,15 @@ public class DistributeCommand : Command<Options>
         )
         .Start(ctx =>
         {
-          var task = ctx.AddTask("Removing files...", maxValue: imagePaths.Count);
+          var task = ctx.AddTask("Removing files...", maxValue: images.Count);
 
           do
           {
-            var path = imagePaths.Dequeue();
+            var path = images.Dequeue().Path;
 
             try
             {
-              File.Delete(path);
+              fsFrom.DeleteFile(path);
             }
             catch (IOException)
             {
@@ -124,7 +123,7 @@ public class DistributeCommand : Command<Options>
             }
 
             task.Increment(1);
-          } while (imagePaths.Count > 0);
+          } while (images.Count > 0);
         });
     }
 
@@ -136,11 +135,13 @@ public class DistributeCommand : Command<Options>
   }
 
   private static Queue<(string, DateTime)> CopyImages(
-    Queue<(string, DateTime)> images,
+    Queue<(string Path, DateTime Date)> images,
+    FileSystem fsFrom,
+    FileSystem fsTo,
     string to,
     string structure,
     bool overwrite = false,
-    string? filenameAppend = null
+    string filenameAppend = ""
   )
   {
     var duplicates = new Queue<(string, DateTime)>();
@@ -163,23 +164,36 @@ public class DistributeCommand : Command<Options>
         do
         {
           var image = images.Dequeue();
-          var directory = to + @"\" + image.Item2.ToString(structure);
-          var path = directory + Path.GetFileName(image.Item1);
-          if (filenameAppend != null)
+          var directory = to + Path.DirectorySeparatorChar + image.Date.ToString(structure);
+          var path =
+            directory
+            + Path.GetFileNameWithoutExtension(image.Path)
+            + filenameAppend
+            + Path.GetExtension(image.Path);
+
+          if (!fsTo.PathExists(directory))
           {
-            var split = path.Split('.');
-            split[0] += filenameAppend;
-            path = split[0] + "." + split[1];
+            fsTo.CreateDirectory(directory);
           }
 
-          if (!Directory.Exists(directory))
+          if (fsTo.PathExists(path))
           {
-            Directory.CreateDirectory(directory);
+            if (overwrite)
+            {
+              fsTo.DeleteFile(path);
+            }
+            else
+            {
+              duplicates.Enqueue(image);
+            }
           }
 
           try
           {
-            File.Copy(image.Item1, path, overwrite);
+            using var streamTo = fsTo.OpenWrite(path);
+            using var streamFrom = fsFrom.OpenRead(image.Path);
+
+            streamFrom.CopyTo(streamTo);
           }
           catch (IOException)
           {
@@ -188,7 +202,7 @@ public class DistributeCommand : Command<Options>
           catch (UnauthorizedAccessException)
           {
             AnsiConsole.MarkupLine(
-              $"[yellow]Missing permission copy image:[/] [gray]{image.Item1}[/][white] to [/][grey]{path}[/]"
+              $"[yellow]Missing permission copy image:[/] [gray]{image.Path}[/][white] to [/][gray]{path}[/]"
             );
           }
 
@@ -199,36 +213,37 @@ public class DistributeCommand : Command<Options>
     return duplicates;
   }
 
-  private static List<(string, DateTime)> GetImagePaths(
+  private static List<(string, DateTime)> GetMediaPaths(
+    FileSystem fileSystem,
     string directory,
     uint depth,
     int maxDepth,
     ProgressContext ctx
   )
   {
-    string[] files = Directory.GetFiles(directory);
+    string[] files = fileSystem.GetFiles(directory);
 
     var task = ctx.AddTask(
-      $"[grey][white]Loading images...         [/] {directory}[/]",
+      $"[gray][white]Loading images...         [/] {directory}[/]",
       maxValue: files.Length + 1
     );
 
     List<(string, DateTime)> images = new(files.Length);
 
-    foreach (string image in files)
+    foreach (string file in files)
     {
       ExifSubIfdDirectory? metadata = null;
 
       try
       {
         metadata = ImageMetadataReader
-          .ReadMetadata(image)
+          .ReadMetadata(fileSystem.OpenRead(file))
           .OfType<ExifSubIfdDirectory>()
           .FirstOrDefault()!;
       }
       catch (ImageProcessingException)
       {
-        AnsiConsole.MarkupLine($"[yellow]Could not process file:[/] [gray]{image}[/]");
+        AnsiConsole.MarkupLine($"[yellow]Could not process file:[/] [gray]{file}[/]");
       }
 
       task.Increment(1);
@@ -240,11 +255,13 @@ public class DistributeCommand : Command<Options>
 
       if (metadata.TryGetDateTime(ExifDirectoryBase.TagDateTimeOriginal, out DateTime datetime))
       {
-        images.Add((image, datetime));
+        images.Add((file, datetime));
+      } else {
+        AnsiConsole.MarkupLine($"[yellow]No date time data for file:[/] [gray]{file}[/]");
       }
     }
 
-    var subdirectories = Directory.GetDirectories(directory);
+    var subdirectories = fileSystem.GetDirectories(directory);
 
     if (subdirectories.Length == 0)
     {
@@ -252,7 +269,7 @@ public class DistributeCommand : Command<Options>
       return images;
     }
 
-    task.Description = $"[grey][white]Loading sub directories...[/] {directory}[/]";
+    task.Description = $"[gray][white]Loading sub directories...[/] {directory}[/]";
     task.Value = 0;
     task.MaxValue = subdirectories.Length;
 
@@ -260,7 +277,7 @@ public class DistributeCommand : Command<Options>
     {
       foreach (string subdirectory in subdirectories)
       {
-        images.AddRange(GetImagePaths(subdirectory, depth + 1, maxDepth, ctx));
+        images.AddRange(GetMediaPaths(fileSystem, subdirectory, depth + 1, maxDepth, ctx));
 
         task.Increment(1);
       }
