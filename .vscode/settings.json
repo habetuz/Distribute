@@ -1,5 +1,25 @@
 {
     "cSpell.words": [
         "Exif"
-    ]
+    ],
+    "workbench.colorCustomizations": {
+        "activityBar.activeBackground": "#549c70",
+        "activityBar.background": "#549c70",
+        "activityBar.foreground": "#15202b",
+        "activityBar.inactiveForeground": "#15202b99",
+        "activityBarBadge.background": "#684e91",
+        "activityBarBadge.foreground": "#e7e7e7",
+        "commandCenter.border": "#e7e7e799",
+        "sash.hoverBorder": "#549c70",
+        "statusBar.background": "#427b58",
+        "statusBar.foreground": "#e7e7e7",
+        "statusBarItem.hoverBackground": "#549c70",
+        "statusBarItem.remoteBackground": "#427b58",
+        "statusBarItem.remoteForeground": "#e7e7e7",
+        "titleBar.activeBackground": "#427b58",
+        "titleBar.activeForeground": "#e7e7e7",
+        "titleBar.inactiveBackground": "#427b5899",
+        "titleBar.inactiveForeground": "#e7e7e799"
+    },
+    "peacock.color": "#427b58"
 }
