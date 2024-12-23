@@ -22,9 +22,12 @@ public class Normal : FileSystem
     return File.OpenRead(path);
   }
 
-  public override Stream OpenWrite(string path)
+  public override void OpenWrite(string path, Stream stream)
   {
-    return File.OpenWrite(path);
+    var writeStream = File.OpenWrite(path);
+    stream.CopyTo(writeStream);
+    writeStream.Close();
+    stream.Close();
   }
 
   public override void CreateDirectory(string path)

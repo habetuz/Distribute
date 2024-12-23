@@ -11,7 +11,7 @@
             "preLaunchTask": "build",
             // If you have changed target frameworks, make sure to update the program path.
             "program": "${workspaceFolder}/bin/Debug/net8.0/Distribute.dll",
-            "args": ["A22 von Bianca:/Interner Speicher/DCIM/Camera", "./DistributeTest"],
+            "args": ["Pixel 8:\\Interner gemeinsamer Speicher\\DCIM\\Camera", "Pixel 8:\\Interner gemeinsamer Speicher\\Test"],
             "cwd": "${workspaceFolder}",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "integratedTerminal",

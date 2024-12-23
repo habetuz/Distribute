@@ -9,14 +9,28 @@ namespace Distribute;
 
 public class DistributeCommand : Command<Options>
 {
+  const string VERSION = "2.0.0";
+
   public override int Execute(CommandContext context, Options options)
   {
     AnsiConsole.Foreground = Color.Green;
 
+    AnsiConsole.Write(new FigletText("Distribute").LeftJustified().Color(Color.Green));
+    AnsiConsole.WriteLine("Distribute images by date taken.");
+    AnsiConsole.MarkupLine($"[yellow]Version:[/] [gray]{VERSION}[/]");
+    AnsiConsole.WriteLine();
+
     FileSystem fsFrom = FileSystemFactory.From(options.From);
     FileSystem fsTo = FileSystemFactory.From(options.To);
 
-    var files = EnumerateFilePaths(fsFrom, options.From, 1, options.Depth);
+    AnsiConsole.Write(new Rule($"[green]Loading image paths[/]") { Style = Style.Parse("green"), });
+
+    var files = AnsiConsole
+      .Status()
+      .Start(
+        "Loading file names...",
+        (ctx) => EnumerateFilePaths(fsFrom, options.From, 1, options.Depth, ctx)
+      );
 
     AnsiConsole.Write(
       new Rule($"Files loaded. [yellow]{files.Count()}[/] files to distribute!")
@@ -236,10 +250,7 @@ public class DistributeCommand : Command<Options>
 
               try
               {
-                using var streamTo = fsTo.OpenWrite(path);
-                using var streamFrom = fsFrom.OpenRead(file.Path);
-
-                streamFrom.CopyTo(streamTo);
+                fsTo.OpenWrite(path, fsFrom.OpenRead(file.Path));
               }
               catch (UnauthorizedAccessException)
               {
@@ -268,16 +279,19 @@ public class DistributeCommand : Command<Options>
     FileSystem fileSystem,
     string directory,
     uint depth,
-    int maxDepth
+    int maxDepth,
+    StatusContext ctx
   )
   {
-    var files = fileSystem.EnumerateFiles(directory);
+    ctx.Status(directory);
+
+    var files = fileSystem.EnumerateFiles(directory).ToList();
     var subdirectories = fileSystem.EnumerateDirectories(directory);
 
     return files.Concat(
       subdirectories.Aggregate(
         Enumerable.Empty<string>(),
-        (acc, curr) => acc.Concat(EnumerateFilePaths(fileSystem, curr, depth + 1, maxDepth))
+        (acc, curr) => acc.Concat(EnumerateFilePaths(fileSystem, curr, depth + 1, maxDepth, ctx))
       )
     );
   }

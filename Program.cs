@@ -1,4 +1,5 @@
 ﻿using Distribute;
+using Spectre.Console;
 using Spectre.Console.Cli;
 
 var app = new CommandApp<DistributeCommand>();
@@ -7,4 +8,14 @@ var app = new CommandApp<DistributeCommand>();
 app.Configure(ctx => ctx.PropagateExceptions());
 #endif
 
-app.Run(args);
+try
+{
+  app.Run(args);
+}
+catch (Exception e)
+{
+  AnsiConsole.WriteException(e);
+  return 1;
+}
+
+return 0;
