@@ -25,6 +25,23 @@ My images
 
 Because sorting my images by hand into this structure is tedious I build myself this little tool to do it for me.
 
+## Features
+
+- Specify a folder from wich files get loaded and a folder where the files should be sorted into using `distribute [From] [To]`.
+- Use `-s|--structure` define a structure using [a custom date and time format](https://learn.microsoft.com/en-us/dotnet/standard/base-types/custom-date-and-time-format-strings).
+- Delete copied files with `-d|--delete`.
+- Media devices (like connected phones on Windows) are supported.
+
+### Copy from or to media devices
+
+When connecting a phone to a windows computer it can only be accessed by [MTP](https://en.wikipedia.org/wiki/Media_Transfer_Protocol) or [FTP](https://en.wikipedia.org/wiki/File_Transfer_Protocol).
+
+To specify a media device to copy from or to use the following notation:
+
+`Device Name:\Drive Name\Path`
+
+where `Device Name` is the name listed in your explorer and `Drive Name` is the drive listed in the device.
+
 ## Installation
 
 Goto the release page and fetch your fitting binary.
@@ -33,7 +50,7 @@ Goto the release page and fetch your fitting binary.
 
 ``` txt
 USAGE:
-    Distribute.dll [From] [To] [OPTIONS]
+    distribute [From] [To] [OPTIONS]
 
 ARGUMENTS:
     [From]    The source directory the files should be distributed from
