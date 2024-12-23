@@ -1,6 +1,7 @@
 #pragma warning disable CA1416 // Validate platform compatibility
 using System.IO.Pipes;
 using System.Runtime.ConstrainedExecution;
+using Spectre.Console;
 
 namespace Distribute.FS;
 
@@ -27,7 +28,10 @@ public class MediaDevice : FileSystem, IDisposable
 
   private string TrimDeviceName(string path)
   {
-    return path[(DeviceName.Length + 1)..];
+    if (path.Contains(':'))
+      return path[(DeviceName.Length + 1)..];
+    else
+      return path;
   }
 
   public override string[] GetDirectories(string path)
@@ -49,6 +53,7 @@ public class MediaDevice : FileSystem, IDisposable
   {
     var stream = new MemoryStream();
     Device.DownloadFile(TrimDeviceName(path), stream);
+    stream.Position = 0;
     return stream;
   }
 
@@ -56,6 +61,7 @@ public class MediaDevice : FileSystem, IDisposable
   {
     var stream = new MemoryStream();
     Device.UploadFile(stream, TrimDeviceName(path));
+    stream.Position = 0;
     return stream;
   }
 

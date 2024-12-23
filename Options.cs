@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using System.Runtime.InteropServices;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -21,7 +22,7 @@ public class Options(string from, string to, string structure, int depth, bool r
     "The folder structure the files should be sorted into.\nSee https://learn.microsoft.com/en-us/dotnet/standard/base-types/custom-date-and-time-format-strings for more information."
   )]
   [CommandOption("-s|--structure")]
-  [DefaultValue("yyyy/MM/")]
+  [DefaultValue("yyyy'/'MM'/'")]
   public string Structure { get; private set; } = structure;
 
   [Description("The maximum search depth for files in the source directory.")]
@@ -47,14 +48,22 @@ public class Options(string from, string to, string structure, int depth, bool r
       return ValidationResult.Error("Either option [-f|--from] or [-t|--to] has to be specified.");
     }
 
-    if (!Path.IsPathFullyQualified(From))
-    {
-      From = Path.GetFullPath(From);
-    }
+    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
+      if (!From.Contains(':')) {
+        From = Path.GetFullPath(From);
+      }
 
-    if (!Path.IsPathFullyQualified(To))
-    {
-      To = Path.GetFullPath(To);
+      if (!To.Contains(':')) {
+        To = Path.GetFullPath(To);
+      }
+    } else {
+      if (!Path.IsPathFullyQualified(From)) {
+        From = Path.GetFullPath(From);
+      }
+
+      if (!Path.IsPathFullyQualified(To)) {
+        To = Path.GetFullPath(To);
+      }
     }
 
     return ValidationResult.Success();

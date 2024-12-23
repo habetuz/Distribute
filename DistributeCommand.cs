@@ -4,7 +4,6 @@ using MetadataExtractor;
 using MetadataExtractor.Formats.Exif;
 using Spectre.Console;
 using Spectre.Console.Cli;
-using Directory = System.IO.Directory;
 
 namespace Distribute;
 
@@ -33,7 +32,7 @@ public class DistributeCommand : Command<Options>
       )
       .AutoClear(true)
       .HideCompleted(true)
-      .Start(ctx => images = new(GetMediaPaths(fsFrom, options.From, 0, options.Depth, ctx)));
+      .Start(ctx => images = new(GetFilePaths(fsFrom, options.From, 1, options.Depth, ctx)));
 
     AnsiConsole.Write(
       new Rule($"Metadata loaded. [yellow]{images.Count}[/] files to distribute!")
@@ -167,6 +166,7 @@ public class DistributeCommand : Command<Options>
           var directory = to + Path.DirectorySeparatorChar + image.Date.ToString(structure);
           var path =
             directory
+            + Path.DirectorySeparatorChar
             + Path.GetFileNameWithoutExtension(image.Path)
             + filenameAppend
             + Path.GetExtension(image.Path);
@@ -213,7 +213,7 @@ public class DistributeCommand : Command<Options>
     return duplicates;
   }
 
-  private static List<(string, DateTime)> GetMediaPaths(
+  private static List<(string, DateTime)> GetFilePaths(
     FileSystem fileSystem,
     string directory,
     uint depth,
@@ -241,9 +241,10 @@ public class DistributeCommand : Command<Options>
           .OfType<ExifSubIfdDirectory>()
           .FirstOrDefault()!;
       }
-      catch (ImageProcessingException)
+      catch (ImageProcessingException e)
       {
         AnsiConsole.MarkupLine($"[yellow]Could not process file:[/] [gray]{file}[/]");
+        AnsiConsole.WriteException(e);
       }
 
       task.Increment(1);
@@ -256,7 +257,9 @@ public class DistributeCommand : Command<Options>
       if (metadata.TryGetDateTime(ExifDirectoryBase.TagDateTimeOriginal, out DateTime datetime))
       {
         images.Add((file, datetime));
-      } else {
+      }
+      else
+      {
         AnsiConsole.MarkupLine($"[yellow]No date time data for file:[/] [gray]{file}[/]");
       }
     }
@@ -277,7 +280,7 @@ public class DistributeCommand : Command<Options>
     {
       foreach (string subdirectory in subdirectories)
       {
-        images.AddRange(GetMediaPaths(fileSystem, subdirectory, depth + 1, maxDepth, ctx));
+        images.AddRange(GetFilePaths(fileSystem, subdirectory, depth + 1, maxDepth, ctx));
 
         task.Increment(1);
       }
