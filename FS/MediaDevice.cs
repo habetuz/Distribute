@@ -5,7 +5,7 @@ using Spectre.Console;
 
 namespace Distribute.FS;
 
-public class MediaDevice : FileSystem, IDisposable
+public class MediaDevice : FileSystem
 {
   private string DeviceName { get; init; }
   private MediaDevices.MediaDevice Device { get; init; }
@@ -75,7 +75,17 @@ public class MediaDevice : FileSystem, IDisposable
     Device.DeleteFile(TrimDeviceName(path));
   }
 
-  public void Dispose()
+  public override IEnumerable<string> EnumerateFiles(string path)
+  {
+    return Device.EnumerateFiles(path);
+  }
+
+  public override IEnumerable<string> EnumerateDirectories(string path)
+  {
+    return Device.EnumerateDirectories(path);
+  }
+
+  public override void Dispose()
   {
     GC.SuppressFinalize(this);
     Device.Disconnect();

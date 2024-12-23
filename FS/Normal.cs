@@ -36,4 +36,19 @@ public class Normal : FileSystem
   {
     File.Delete(path);
   }
+
+  public override IEnumerable<string> EnumerateFiles(string path)
+  {
+    return Directory.EnumerateFiles(path);
+  }
+
+  public override IEnumerable<string> EnumerateDirectories(string path)
+  {
+    return Directory.EnumerateDirectories(path);
+  }
+
+  public override void Dispose()
+  {
+    GC.SuppressFinalize(this);
+  }
 }
